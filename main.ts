@@ -26,25 +26,26 @@ import {
 
 const LAMPORTS = 1_000_000_000;
 const CURVE_FEE = 0.0125; // curve fee share deducted from the value estimate
-const WINDOW = 20; // entry lookback, in slots
-const MIN_AGE = 300; // slots since CreateEvent before an entry is allowed
-const MIN_NET_SOL = 0.5; // net buy SOL over the window
+const WINDOW = 30; // entry lookback, in slots
+const MIN_AGE = 500; // slots since CreateEvent before an entry is allowed
+const MIN_NET_SOL = 1.5; // net buy SOL over the window
 const MIN_BUYS = 3; // buy trades in the window
-const MIN_BUYERS = 3; // distinct buying wallets in the window
-const MIN_UP = 0.03; // price now over price at the window start, minus 1
-const NEAR_HIGH = 0.9; // price now at least this share of the window high
-const MIN_RQ_SOL = 1; // curve real SOL bounds at entry
-const MAX_RQ_SOL = 80;
+const MIN_BUYERS = 5; // distinct buying wallets in the window
+const MIN_UP = 0.08; // price now over price at the window start, minus 1
+const MAX_UP = 1.5; // skip curves that already ran too far inside one window
+const NEAR_HIGH = 0.95; // price now at least this share of the window high
+const MIN_RQ_SOL = 2; // curve real SOL bounds at entry
+const MAX_RQ_SOL = 60;
 const FIRST_BUY_SOL = 0.05;
-const ADD_SOL = 0.2;
-const STAKE_SOL = 1; // most SOL into one position in total
+const ADD_SOL = 0.1;
+const STAKE_SOL = 0.3; // most SOL into one position in total
 const MIN_BUY_SOL = 0.01; // smallest buy worth sending (also the round-trip bar)
 const BUY_SLIP_BPS = 1500;
 const SELL_SLIP_BPS = 10_000;
-const STOP_LOSS = 0.2; // exit when value falls this far below cost
-const TRAIL = 0.25; // trailing stop from the peak value
-const TRAIL_ARM = 0.1; // trailing stop arms once value reaches cost * (1 + arm)
-const MAX_HOLD = 1200; // exit after this many slots held
+const STOP_LOSS = 0.12; // exit when value falls this far below cost
+const TRAIL = 0.15; // trailing stop from the peak value
+const TRAIL_ARM = 0.03; // trailing stop arms once value reaches cost * (1 + arm)
+const MAX_HOLD = 600; // exit after this many slots held
 const BIG_SELL_SOL = 5; // exit on any single recorded sell this big
 const COOLDOWN = 150; // slots to wait after an exit before re-entering a curve
 const MAX_ENTRIES = 2; // most entries per curve over the run
@@ -54,7 +55,7 @@ const TARGET_FILLS = 200;
 const PACE_SECS = 14_400; // block-time seconds the pace is measured over
 const PROBE_SOL = 0.01;
 const MAX_PROBES = 1;
-const MAX_EXPOSURE_SOL = 5; // most SOL at cost across all positions at once
+const MAX_EXPOSURE_SOL = 2; // most SOL at cost across all positions at once
 
 interface Trade {
   slot: number;
@@ -148,7 +149,7 @@ function entrySignal(t: Tape, now: number, rqSol: number): boolean {
   if (buySol - sellSol < MIN_NET_SOL) return false;
   if (startPrice <= 0) return false;
   const up = last / startPrice - 1;
-  if (up < MIN_UP) return false;
+  if (up < MIN_UP || up > MAX_UP) return false;
   if (last < high * NEAR_HIGH) return false;
   // Acceleration: the newer half of the window must flow in at least as
   // fast as the older half.
